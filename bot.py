@@ -45,7 +45,7 @@ async def on_message(message: discord.Message):
                 embed = await scan(market_hash_name, pages=pages)
             await message.reply(embed=embed)
             return
-        elif content.lower() in ("annuler", "cancel", "non"):
+        elif content.lower() in ("annuler", "cancel", "non", "/cancel"):
             pending.pop(uid)
             await message.reply("❌ Analyse annulée.")
             return
@@ -53,12 +53,21 @@ async def on_message(message: discord.Message):
             await message.reply("Réponds avec un **nombre** de pages (ex: `5`) ou `annuler`.")
             return
 
+    # ── /cancel ─────────────────────────────────────────
+    if content.lower() == "/cancel":
+        if uid in pending:
+            pending.pop(uid)
+            await message.reply("❌ Analyse annulée.")
+        else:
+            await message.reply("Aucune analyse en cours.")
+        return
+
     # ── /info ───────────────────────────────────────────
     if content.lower() == "/info":
         embed = discord.Embed(
             color=0x5865F2,
             description=(
-                "## 👋  Bonjour Dieu du sexe !\n"
+                "## 👋  Bonjour Seigneur du caca !\n"
                 "━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 "Voici toutes mes commandes :"
             ),
@@ -81,6 +90,11 @@ async def on_message(message: discord.Message):
         embed.add_field(
             name="ℹ️  `/info`",
             value="> Affiche ce menu",
+            inline=False,
+        )
+        embed.add_field(
+            name="❌  `/cancel`",
+            value="> Annule la recherche en cours",
             inline=False,
         )
         embed.set_footer(text="CS2 Charm Analyzer  •  Steam Market")
