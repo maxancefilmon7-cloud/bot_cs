@@ -180,7 +180,7 @@ async def scan(market_hash_name: str, pages: int = 10) -> discord.Embed:
                 break
 
             if fetched < total_listings_wanted:
-                await asyncio.sleep(1.0)  # Délai entre les gros batchs
+                await asyncio.sleep(3.0)  # Délai entre les batchs pour éviter le rate limit
 
         # Sauvegarder
         for c in all_charms:
