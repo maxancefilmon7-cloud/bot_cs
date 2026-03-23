@@ -36,7 +36,7 @@ async def on_message(message: discord.Message):
     # ── Réponse au nombre de pages demandé ─────────────
     if uid in pending:
         if content.isdigit():
-            pages = max(1, min(int(content), 50))  # Entre 1 et 50 pages
+            pages = max(1, int(content))
             market_hash_name = pending.pop(uid)
             await message.reply(f"⏳ Analyse de **{pages} page(s)** en cours... (~{pages * 1.2:.0f} sec)")
             async with message.channel.typing():

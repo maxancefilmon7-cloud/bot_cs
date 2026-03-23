@@ -37,15 +37,15 @@ class SteamMarketAPI:
                 raise RuntimeError(f"Steam a répondu {resp.status}")
             return await resp.json(content_type=None)
 
-    async def get_page(self, market_hash_name: str, start: int = 0) -> dict:
-        """Récupère exactement 10 listings à partir de la position start."""
+    async def get_page(self, market_hash_name: str, start: int = 0, count: int = 100) -> dict:
+        """Récupère jusqu'à `count` listings à partir de la position start."""
         session = await self._get_session()
         encoded = quote(market_hash_name, safe="")
         url = f"{STEAM_BASE}/listings/{APP_ID}/{encoded}/render/"
         params = {
             "query": "",
             "start": start,
-            "count": 10,
+            "count": count,
             "country": "FR",
             "language": "french",
             "currency": CURRENCY,

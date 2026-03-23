@@ -123,21 +123,64 @@ async def scan(market_hash_name: str, pages: int = 10) -> discord.Embed:
         all_charms = []
         total_count = 0
         pages_scanned = 0
+        total_listings_wanted = pages * 10  # 1 page = 10 listings
 
-        for page_num in range(1, pages + 1):
-            start = (page_num - 1) * 10
-            data = await api.get_page(market_hash_name, start=start)
-            charms, tc = _parse_page(data, page_num)
-            all_charms.extend(charms)
-            if page_num == 1:
-                total_count = tc
-            pages_scanned += 1
+        # On récupère 100 listings par requête (10 pages Steam en 1 seule requête)
+        batch_size = 100
+        fetched = 0
 
-            # Arrêter si on a atteint la fin des listings
-            if start + 10 >= tc:
+        while fetched < total_listings_wanted:
+            data = await api.get_page(market_hash_name, start=fetched, count=batch_size)
+
+            if fetched == 0:
+                total_count = data.get("total_count", 0)
+
+            # Parser les listings de ce batch en reconstituant les numéros de page
+            raw_assets = data.get("assets", {})
+            assets = raw_assets.get("730", {}) if isinstance(raw_assets, dict) else {}
+            assets = assets.get("2", {}) if isinstance(assets, dict) else {}
+            listinginfo = data.get("listinginfo", {})
+            if not isinstance(listinginfo, dict):
+                listinginfo = {}
+
+            position_in_batch = 0
+            for linfo in listinginfo.values():
+                if not isinstance(linfo, dict):
+                    continue
+                aid = linfo.get("asset", {}).get("id")
+                if not aid or aid not in assets:
+                    position_in_batch += 1
+                    continue
+                price = (
+                    linfo.get("converted_price", linfo.get("price", 0)) +
+                    linfo.get("converted_fee", linfo.get("fee", 0))
+                ) / 100
+                if price <= 0 or price > 50000:
+                    position_in_batch += 1
+                    continue
+
+                global_pos = fetched + position_in_batch  # position globale (0-indexé)
+                page_num = (global_pos // 10) + 1
+                pos_in_page = (global_pos % 10) + 1
+
+                charm_name = extract_charm_name(assets[aid].get("descriptions", []))
+                if charm_name:
+                    all_charms.append({
+                        "name": charm_name,
+                        "price": price,
+                        "page": page_num,
+                        "position": pos_in_page,
+                    })
+                position_in_batch += 1
+
+            fetched += batch_size
+            pages_scanned = min(fetched, total_count) // 10
+
+            if fetched >= total_count:
                 break
 
-            await asyncio.sleep(1.2)  # Anti rate-limit Steam
+            if fetched < total_listings_wanted:
+                await asyncio.sleep(1.0)  # Délai entre les gros batchs
 
         # Sauvegarder
         for c in all_charms:
