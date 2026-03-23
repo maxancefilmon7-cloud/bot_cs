@@ -54,15 +54,41 @@ def verdict(discount_pct: float | None) -> tuple[str, int]:
     return "🔴 Surpayé", COLOR_RED
 
 
-def extract_charm_from_descriptions(descriptions: list) -> str | None:
+def extract_charm_from_descriptions(descriptions: list) -> tuple[str, str] | None:
+    """Extract charm info from asset descriptions.
+
+    Steam stores charm info in a description entry with name="keychain_info".
+    The charm name appears inside the HTML as:
+      - title="Charm: <name>"  (regular charms)
+      - title="Souvenir Charm: <name>"  (souvenir charms)
+      - plain text after <br> in the same format
+
+    Returns a tuple (display_name, market_hash_name) or None.
+      - display_name: e.g. "Charm: Biomech" or "Souvenir Charm: Austin 2025 ..."
+      - market_hash_name: e.g. "Charm | Biomech" or "Souvenir Charm | Austin 2025 ..."
+    """
     for desc in descriptions:
-        value = desc.get("value", "")
-        if "Key Chain" in value:
-            soup = BeautifulSoup(value, "html.parser")
-            text = soup.get_text(separator=" ")
-            match = re.search(r"Key Chain\s*:\s*(.+)", text, re.IGNORECASE)
+        # Primary detection: the structured "keychain_info" description entry
+        if desc.get("name") == "keychain_info":
+            value = desc.get("value", "")
+            # Try extracting from the title attribute first (most reliable)
+            match = re.search(r'title="((?:Souvenir )?Charm:\s*[^"]+)"', value)
             if match:
-                return match.group(1).strip()
+                full_title = match.group(1).strip()
+                # full_title = "Charm: Biomech" or "Souvenir Charm: Austin 2025 ..."
+                display_name = full_title
+                # Market hash uses " | " instead of ": "
+                market_hash = full_title.replace(": ", " | ", 1)
+                return display_name, market_hash
+            # Fallback: extract from the visible text after <br>
+            soup = BeautifulSoup(value, "html.parser")
+            text = soup.get_text(separator=" ").strip()
+            match = re.search(r"((?:Souvenir )?Charm:\s*.+)", text, re.IGNORECASE)
+            if match:
+                full_title = match.group(1).strip()
+                display_name = full_title
+                market_hash = full_title.replace(": ", " | ", 1)
+                return display_name, market_hash
     return None
 
 
@@ -121,7 +147,8 @@ async def analyze(market_hash_name: str) -> discord.Embed:
             total = (linfo.get("price", 0) + linfo.get("fee", 0)) / 100
             asset_prices[asset_id] = total
 
-        charm_name = None
+        charm_display = None   # e.g. "Charm: Biomech"
+        charm_market = None    # e.g. "Charm | Biomech"
         charm_prices: list[float] = []
         no_charm_prices: list[float] = []
 
@@ -129,18 +156,19 @@ async def analyze(market_hash_name: str) -> discord.Embed:
             price = asset_prices.get(asset_id)
             if price is None:
                 continue
-            charm = extract_charm_from_descriptions(asset_data.get("descriptions", []))
-            if charm:
+            result = extract_charm_from_descriptions(asset_data.get("descriptions", []))
+            if result:
                 charm_prices.append(price)
-                charm_name = charm_name or charm
+                if charm_display is None:
+                    charm_display, charm_market = result
             else:
                 no_charm_prices.append(price)
 
         # 3. Prix du charm seul
         charm_standalone: float | None = None
-        if charm_name:
+        if charm_market:
             try:
-                c = await api.get_price_overview(charm_name)
+                c = await api.get_price_overview(charm_market)
                 if c.get("success"):
                     charm_standalone = parse_price_str(c.get("lowest_price", ""))
             except Exception:
@@ -156,10 +184,10 @@ async def analyze(market_hash_name: str) -> discord.Embed:
         label, color = verdict(disc_pct)
 
         # Sauvegarder dans la base si charm trouvé
-        if charm_name and min_charm:
+        if charm_display and min_charm:
             storage.save_charm(
                 weapon=market_hash_name,
-                charm_name=charm_name,
+                charm_name=charm_display,
                 price_with_charm=min_charm,
                 price_without_charm=avg_base,
                 charm_standalone=charm_standalone,
@@ -191,13 +219,13 @@ async def analyze(market_hash_name: str) -> discord.Embed:
             inline=False,
         )
 
-        if charm_name:
+        if charm_display:
             embed.add_field(name="\u200b", value="━━━━━━━━━━━━━━━━━━━━━━━━━━━", inline=False)
 
             # Charm détecté
             embed.add_field(
                 name="〔 🔑 CHARM DÉTECTÉ 〕",
-                value=f"> ✨  `{charm_name}`",
+                value=f"> ✨  `{charm_display}`",
                 inline=False,
             )
 
@@ -258,8 +286,8 @@ async def analyze(market_hash_name: str) -> discord.Embed:
             embed.add_field(
                 name="〔 ⚠️ AUCUN CHARM DÉTECTÉ 〕",
                 value=(
-                    "> Aucun Key Chain trouvé dans les 30 premiers listings.\n"
-                    "> L'item n'a peut-être pas de charm actif en ce moment."
+                    "> Aucun Key Chain trouvé dans les 200 premiers listings.\n"
+                    "> Cette arme n'a pas de charm dans les annonces actuelles."
                 ),
                 inline=False,
             )

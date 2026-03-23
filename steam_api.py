@@ -81,11 +81,14 @@ class SteamMarketAPI:
             if isinstance(linfo, dict):
                 merged_listing.update(linfo)
 
-            # Respecter le rate limit Steam entre chaque page
             if page < pages - 1:
                 await asyncio.sleep(1.5)
 
-        return {"assets": merged_assets, "listinginfo": merged_listing}
+        # Retourner la même structure que get_listings pour que analyzer.py puisse la lire
+        return {
+            "assets": {"730": {"2": merged_assets}},
+            "listinginfo": merged_listing,
+        }
 
     async def close(self):
         if self._session and not self._session.closed:
