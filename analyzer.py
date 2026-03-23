@@ -147,10 +147,8 @@ async def analyze(market_hash_name: str) -> discord.Embed:
             total = (linfo.get("price", 0) + linfo.get("fee", 0)) / 100
             asset_prices[asset_id] = total
 
-        charm_display = None   # e.g. "Charm: Biomech"
-        charm_market = None    # e.g. "Charm | Biomech"
-        charm_prices: list[float] = []
-        no_charm_prices: list[float] = []
+        # Regrouper les charms trouvés : {charm_display: {"market": charm_market, "prices": [...]}}
+        charms_found: dict[str, dict] = {}
 
         for asset_id, asset_data in assets.items():
             price = asset_prices.get(asset_id)
@@ -158,40 +156,50 @@ async def analyze(market_hash_name: str) -> discord.Embed:
                 continue
             result = extract_charm_from_descriptions(asset_data.get("descriptions", []))
             if result:
-                charm_prices.append(price)
-                if charm_display is None:
-                    charm_display, charm_market = result
-            else:
-                no_charm_prices.append(price)
+                display, market = result
+                if display not in charms_found:
+                    charms_found[display] = {"market": market, "prices": []}
+                charms_found[display]["prices"].append(price)
 
-        # 3. Prix du charm seul
-        charm_standalone: float | None = None
-        if charm_market:
+        # 3. Prix standalone de chaque charm unique
+        import asyncio
+        for display, info in charms_found.items():
             try:
-                c = await api.get_price_overview(charm_market)
+                c = await api.get_price_overview(info["market"])
                 if c.get("success"):
-                    charm_standalone = parse_price_str(c.get("lowest_price", ""))
+                    info["standalone"] = parse_price_str(c.get("lowest_price", ""))
+                else:
+                    info["standalone"] = None
             except Exception:
-                pass
+                info["standalone"] = None
+            await asyncio.sleep(0.5)  # anti rate-limit entre chaque lookup
 
-        # 4. Calculs + sauvegarde
-        min_charm  = min(charm_prices)    if charm_prices    else None
-        avg_base   = (sum(no_charm_prices) / len(no_charm_prices)) if no_charm_prices else None
-        implied    = (min_charm - avg_base) if (min_charm and avg_base) else None
-        disc_pct   = (((charm_standalone - implied) / charm_standalone) * 100
-                      if (charm_standalone and implied and charm_standalone > 0) else None)
+        # 4. Calculs — on utilise lowest_price comme base fiable (pas la moyenne des listings)
+        base_price = lowest_price  # prix minimum du marché sans distinction charm/non-charm
 
-        label, color = verdict(disc_pct)
-
-        # Sauvegarder dans la base si charm trouvé
-        if charm_display and min_charm:
+        # Sauvegarder chaque charm trouvé
+        for display, info in charms_found.items():
+            min_c = min(info["prices"])
             storage.save_charm(
                 weapon=market_hash_name,
-                charm_name=charm_display,
-                price_with_charm=min_charm,
-                price_without_charm=avg_base,
-                charm_standalone=charm_standalone,
+                charm_name=display,
+                price_with_charm=min_c,
+                price_without_charm=base_price,
+                charm_standalone=info.get("standalone"),
             )
+
+        # Verdict global basé sur le meilleur charm (celui avec le plus grand écart)
+        best_disc = None
+        for info in charms_found.values():
+            standalone = info.get("standalone")
+            min_c = min(info["prices"])
+            implied = min_c - base_price
+            if standalone and standalone > 0:
+                disc = ((standalone - implied) / standalone) * 100
+                if best_disc is None or disc > best_disc:
+                    best_disc = disc
+
+        label, color = verdict(best_disc)
 
         # 5. Construction de l'embed
         item_name_short = market_hash_name[:50] + "…" if len(market_hash_name) > 50 else market_hash_name
@@ -219,58 +227,43 @@ async def analyze(market_hash_name: str) -> discord.Embed:
             inline=False,
         )
 
-        if charm_display:
+        if charms_found:
             embed.add_field(name="\u200b", value="━━━━━━━━━━━━━━━━━━━━━━━━━━━", inline=False)
 
-            # Charm détecté
+            total_charm_listings = sum(len(i["prices"]) for i in charms_found.values())
             embed.add_field(
-                name="〔 🔑 CHARM DÉTECTÉ 〕",
-                value=f"> ✨  `{charm_display}`",
+                name=f"〔 🔑 {len(charms_found)} CHARM(S) DÉTECTÉ(S) — {total_charm_listings} listings 〕",
+                value=f"> 🔫  Prix de base (marché)  —  {fmt(base_price)}",
                 inline=False,
             )
 
-            # Tableau des prix
-            prix_lines = ""
-            if min_charm:
-                prix_lines += f"> 🏷️  Arme **+** Charm     —  {fmt(min_charm)}\n"
-            if avg_base:
-                prix_lines += f"> 🔫  Arme **sans** charm  —  {fmt(avg_base)}\n"
-            if charm_standalone:
-                prix_lines += f"> 💎  Charm seul           —  {fmt(charm_standalone)}\n"
+            # Afficher chaque charm trouvé
+            for display, info in charms_found.items():
+                min_c = min(info["prices"])
+                standalone = info.get("standalone")
+                implied = min_c - base_price
+                disc_pct = (((standalone - implied) / standalone) * 100
+                            if standalone and standalone > 0 else None)
 
-            if prix_lines:
-                embed.add_field(
-                    name="〔 🧾 DÉCOMPOSITION DES PRIX 〕",
-                    value=prix_lines,
-                    inline=False,
+                val = (
+                    f"> 🏷️  Arme + Charm  —  {fmt(min_c)}\n"
+                    f"> 💡  Valeur charm  —  {fmt(implied)}\n"
                 )
-
-            # Valeur du charm
-            if implied is not None:
-                charm_section = f"> 💡  Valeur implicite  —  {fmt(implied)}\n"
+                if standalone:
+                    val += f"> 💎  Charm seul    —  {fmt(standalone)}\n"
                 if disc_pct is not None:
-                    direction = "sous ↓" if disc_pct > 0 else "au-dessus ↑"
-                    charm_section += (
-                        f"> 📊  Écart marché  —  {direction}\n"
-                        f"> {discount_bar(disc_pct)}\n"
-                    )
-                embed.add_field(
-                    name="〔 📊 ANALYSE DU CHARM 〕",
-                    value=charm_section,
-                    inline=False,
+                    direction = "sous le marché ↓" if disc_pct > 0 else "au-dessus ↑"
+                    val += f"> 📊  {direction}  {discount_bar(disc_pct)}\n"
+
+                r = resale_analysis(min_c)
+                val += (
+                    f"> ⚖️  Revente seuil — {fmt(r['break_even'])}  "
+                    f"| +10% {fmt(r['profit_10'])}"
                 )
 
-            # Revente
-            if min_charm:
-                r = resale_analysis(min_charm)
                 embed.add_field(
-                    name="〔 📈 ESTIMATION REVENTE 〕",
-                    value=(
-                        f"> ⚖️  Seuil rentabilité  —  {fmt(r['break_even'])}\n"
-                        f"> 🟢  Revente **+10%**    —  {fmt(r['profit_10'])}\n"
-                        f"> 🚀  Revente **+20%**    —  {fmt(r['profit_20'])}\n"
-                        f"> *après frais Steam 15%*"
-                    ),
+                    name=f"✨ {display}  ({len(info['prices'])} listing{'s' if len(info['prices']) > 1 else ''})",
+                    value=val,
                     inline=False,
                 )
 
