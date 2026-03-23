@@ -75,83 +75,92 @@ def extract_charm_name(descriptions: list) -> str | None:
     return None
 
 
-async def scan(market_hash_name: str) -> discord.Embed:
-    """
-    Scanne UNE page (10 listings) et liste les charms trouvés
-    avec leur position exacte et leur prix exact.
-    """
-    try:
-        # Récupérer les 10 premiers listings
-        data = await api.get_page(market_hash_name, start=0)
+def _parse_page(data: dict, page_num: int) -> tuple[list, int]:
+    """Extrait les listings et charms d'une page Steam. Retourne (charms, total_count)."""
+    raw_assets = data.get("assets", {})
+    assets = raw_assets.get("730", {}) if isinstance(raw_assets, dict) else {}
+    assets = assets.get("2", {}) if isinstance(assets, dict) else {}
 
-        # Extraire assets et listinginfo
-        raw_assets = data.get("assets", {})
-        if not isinstance(raw_assets, dict):
-            return _error_embed("Réponse Steam invalide.")
+    listinginfo = data.get("listinginfo", {})
+    if not isinstance(listinginfo, dict):
+        listinginfo = {}
 
-        assets = raw_assets.get("730", {})
-        if isinstance(assets, dict):
-            assets = assets.get("2", {})
-        if not isinstance(assets, dict):
-            assets = {}
+    total_count = data.get("total_count", 0)
 
-        listinginfo = data.get("listinginfo", {})
-        if not isinstance(listinginfo, dict):
-            listinginfo = {}
+    charms = []
+    position = 1
+    for linfo in listinginfo.values():
+        if not isinstance(linfo, dict):
+            continue
+        aid = linfo.get("asset", {}).get("id")
+        if not aid or aid not in assets:
+            position += 1
+            continue
+        price = (
+            linfo.get("converted_price", linfo.get("price", 0)) +
+            linfo.get("converted_fee", linfo.get("fee", 0))
+        ) / 100
+        if price <= 0 or price > 50000:
+            position += 1
+            continue
 
-        total_count = data.get("total_count", "?")
-
-        # Construire la liste des listings avec leur prix, triés par prix croissant
-        listings = []
-        for linfo in listinginfo.values():
-            if not isinstance(linfo, dict):
-                continue
-            aid = linfo.get("asset", {}).get("id")
-            if not aid or aid not in assets:
-                continue
-            price = (linfo.get("converted_price", linfo.get("price", 0)) + linfo.get("converted_fee", linfo.get("fee", 0))) / 100
-            if price <= 0 or price > 50000:
-                continue
-            listings.append({
-                "aid": aid,
+        charm_name = extract_charm_name(assets[aid].get("descriptions", []))
+        if charm_name:
+            charms.append({
+                "name": charm_name,
                 "price": price,
-                "asset": assets[aid],
+                "page": page_num,
+                "position": position,
             })
+        position += 1
 
-        # Ne pas re-trier — Steam retourne déjà les listings dans l'ordre de la page
+    return charms, total_count
 
-        # Chercher les charms
-        charms = []
-        for pos, listing in enumerate(listings, start=1):
-            charm_name = extract_charm_name(listing["asset"].get("descriptions", []))
-            if charm_name:
-                charms.append({
-                    "name": charm_name,
-                    "price": listing["price"],
-                    "position": pos,
-                })
-                # Sauvegarder
-                storage.save_charm(
-                    weapon=market_hash_name,
-                    charm_name=charm_name,
-                    price_with_charm=listing["price"],
-                    price_without_charm=None,
-                    charm_standalone=None,
-                    page=1,
-                    position=pos,
-                )
 
-        # Construire l'embed
+async def scan(market_hash_name: str) -> discord.Embed:
+    """Scanne 10 pages (100 listings) et liste tous les charms trouvés."""
+    try:
+        all_charms = []
+        total_count = 0
+        pages_scanned = 0
+
+        for page_num in range(1, 11):
+            start = (page_num - 1) * 10
+            data = await api.get_page(market_hash_name, start=start)
+            charms, tc = _parse_page(data, page_num)
+            all_charms.extend(charms)
+            if page_num == 1:
+                total_count = tc
+            pages_scanned += 1
+
+            # Arrêter si on a atteint la fin des listings
+            if start + 10 >= tc:
+                break
+
+            await asyncio.sleep(1.2)  # Anti rate-limit Steam
+
+        # Sauvegarder
+        for c in all_charms:
+            storage.save_charm(
+                weapon=market_hash_name,
+                charm_name=c["name"],
+                price_with_charm=c["price"],
+                price_without_charm=None,
+                charm_standalone=None,
+                page=c["page"],
+                position=c["position"],
+            )
+
         name_short = market_hash_name[:55] + "…" if len(market_hash_name) > 55 else market_hash_name
 
-        if not charms:
+        if not all_charms:
             embed = discord.Embed(
                 color=COLOR_BLUE,
                 description=(
                     f"## 🎯  {name_short}\n"
                     f"━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                    f"> 📦 {len(listings)} listings analysés • {total_count} en tout\n"
-                    f"\n〔 ⚠️ Aucun porte-bonheur trouvé sur cette page 〕"
+                    f"> 📦 {pages_scanned * 10} listings analysés ({pages_scanned} pages) • {total_count} en tout\n"
+                    f"\n〔 ⚠️ Aucun porte-bonheur trouvé 〕"
                 ),
             )
             embed.set_footer(text="CS2 Charm Analyzer  •  Steam Market")
@@ -162,17 +171,17 @@ async def scan(market_hash_name: str) -> discord.Embed:
             description=(
                 f"## 🎯  {name_short}\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"> 📦 {len(listings)} listings analysés • {total_count} en tout\n"
-                f"> 🔑 **{len(charms)} porte-bonheur(s) trouvé(s)**"
+                f"> 📦 {pages_scanned * 10} listings analysés ({pages_scanned} pages) • {total_count} en tout\n"
+                f"> 🔑 **{len(all_charms)} porte-bonheur(s) trouvé(s)**"
             ),
         )
 
-        for c in charms:
+        for c in all_charms:
             embed.add_field(
                 name=f"✨ {c['name']}",
                 value=(
                     f"> 🏷️  Arme + porte-bonheur : {fmt(c['price'])}\n"
-                    f"> 📍  Page **1**, position **{c['position']}**"
+                    f"> 📍  Page **{c['page']}**, position **{c['position']}**"
                 ),
                 inline=False,
             )
