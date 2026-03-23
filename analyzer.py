@@ -60,19 +60,23 @@ def resale(buy: float) -> dict:
 
 
 def extract_charm(descriptions: list) -> tuple[str, str] | None:
-    """Retourne (display_name, market_hash_name) ou None."""
+    """
+    Retourne (display_name, market_hash_name) ou None.
+    Extrait depuis l'URL du lien Steam — indépendant de la langue.
+    """
+    from urllib.parse import unquote
     for desc in descriptions:
         if desc.get("name") == "keychain_info":
             value = desc.get("value", "")
-            # Chercher dans l'attribut title (le plus fiable)
-            m = re.search(r'title="((?:Souvenir )?Charm:\s*[^"]+)"', value)
+            # Extraire depuis l'URL du lien (toujours en anglais)
+            m = re.search(r'href="[^"]+/market/listings/730/([^"]+)"', value)
             if m:
-                display = m.group(1).strip()
-                return display, display.replace(": ", " | ", 1)
-            # Fallback: texte visible
-            soup = BeautifulSoup(value, "html.parser")
-            text = soup.get_text(separator=" ").strip()
-            m = re.search(r"((?:Souvenir )?Charm:\s*.+)", text, re.IGNORECASE)
+                market_hash = unquote(m.group(1)).strip()
+                # Convertir "Charm | Biomech" → "Charm: Biomech" pour l'affichage
+                display = market_hash.replace(" | ", ": ", 1)
+                return display, market_hash
+            # Fallback: title attribute
+            m = re.search(r'title="([^"]+)"', value)
             if m:
                 display = m.group(1).strip()
                 return display, display.replace(": ", " | ", 1)
@@ -162,11 +166,7 @@ async def scan(market_hash_name: str) -> discord.Embed:
 
         embed.add_field(
             name="〔 💰 MARCHÉ STEAM 〕",
-            value=(
-                f"> 📉  Minimum    —  {fmt(lowest)}\n"
-                f"> 📊  Médiane   —  {fmt(median)}\n"
-                f"> 🔄  Volume 24h — **{volume} ventes**"
-            ),
+            value=f"> 📉  Prix minimum — {fmt(lowest)}  •  🔄 **{volume} ventes/24h**",
             inline=False,
         )
 
