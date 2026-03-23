@@ -1,202 +1,112 @@
 {
-  "AK-47 | Nightwish (Field-Tested)|||Charm: Lil' No. 2": {
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Mini mine": {
     "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Charm: Lil' No. 2",
+    "charm_name": "Charm: Mini mine",
     "price_with_charm": 92.0,
-    "price_without_charm": 92.0,
-    "charm_standalone": null,
-    "page": 1,
-    "position": 7,
-    "last_updated": "2026-03-23 21:22"
-  },
-  "AK-47 | Nightwish (Field-Tested)|||Charm: Lil' Cap Gun": {
-    "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Charm: Lil' Cap Gun",
-    "price_with_charm": 97.75,
-    "price_without_charm": 92.0,
-    "charm_standalone": null,
-    "page": 4,
-    "position": 5,
-    "last_updated": "2026-03-23 21:22"
-  },
-  "AK-47 | Nightwish (Field-Tested)|||Charm: Stitch-Loaded": {
-    "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Charm: Stitch-Loaded",
-    "price_with_charm": 98.0,
-    "price_without_charm": 92.0,
-    "charm_standalone": null,
-    "page": 4,
-    "position": 8,
-    "last_updated": "2026-03-23 21:22"
-  },
-  "AK-47 | Nightwish (Field-Tested)|||Charm: Lil' Crass": {
-    "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Charm: Lil' Crass",
-    "price_with_charm": 103.5,
-    "price_without_charm": 92.0,
-    "charm_standalone": null,
-    "page": 6,
-    "position": 9,
-    "last_updated": "2026-03-23 21:22"
-  },
-  "AK-47 | Nightwish (Field-Tested)|||Charm: Lil' SAS": {
-    "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Charm: Lil' SAS",
-    "price_with_charm": 108.0,
-    "price_without_charm": 92.0,
-    "charm_standalone": null,
-    "page": 7,
-    "position": 9,
-    "last_updated": "2026-03-23 21:22"
-  },
-  "AK-47 | Nightwish (Field-Tested)|||Charm: Hot Sauce": {
-    "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Charm: Hot Sauce",
-    "price_with_charm": 112.7,
-    "price_without_charm": 92.0,
-    "charm_standalone": null,
-    "page": 8,
-    "position": 9,
-    "last_updated": "2026-03-23 21:22"
-  },
-  "AK-47 | Nightwish (Field-Tested)|||Charm: Lil' Ava": {
-    "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Charm: Lil' Ava",
-    "price_with_charm": 115.0,
-    "price_without_charm": 92.0,
-    "charm_standalone": 0.18,
-    "page": 9,
-    "position": 8,
-    "last_updated": "2026-03-23 21:25"
-  },
-  "AK-47 | Nightwish (Field-Tested)|||Charm: Whittle Knife": {
-    "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Charm: Whittle Knife",
-    "price_with_charm": 120.0,
-    "price_without_charm": 92.0,
-    "charm_standalone": null,
-    "page": 12,
-    "position": 1,
-    "last_updated": "2026-03-23 21:22"
-  },
-  "AK-47 | Nightwish (Field-Tested)|||Charm: Baby's AK": {
-    "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Charm: Baby's AK",
-    "price_with_charm": 805.0,
-    "price_without_charm": 92.0,
-    "charm_standalone": null,
-    "page": 15,
-    "position": 6,
-    "last_updated": "2026-03-23 21:22"
-  },
-  "AK-47 | Nightwish (Field-Tested)|||Porte-bonheur: Mini mine": {
-    "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Porte-bonheur: Mini mine",
-    "price_with_charm": 92.0,
-    "price_without_charm": 90.3,
+    "price_without_charm": 85.0,
     "charm_standalone": 0.0,
     "page": 1,
-    "position": 7,
-    "last_updated": "2026-03-23 21:30"
+    "position": 9,
+    "last_updated": "2026-03-23 21:37"
   },
-  "AK-47 | Nightwish (Field-Tested)|||Porte-bonheur: Bouchon jaune": {
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Bouchon jaune": {
     "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Porte-bonheur: Bouchon jaune",
+    "charm_name": "Charm: Bouchon jaune",
     "price_with_charm": 97.75,
-    "price_without_charm": 90.3,
+    "price_without_charm": 85.0,
     "charm_standalone": 0.0,
     "page": 4,
-    "position": 5,
-    "last_updated": "2026-03-23 21:30"
+    "position": 7,
+    "last_updated": "2026-03-23 21:37"
   },
-  "AK-47 | Nightwish (Field-Tested)|||Porte-bonheur: Pistolaine": {
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Pistolaine": {
     "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Porte-bonheur: Pistolaine",
+    "charm_name": "Charm: Pistolaine",
     "price_with_charm": 98.0,
-    "price_without_charm": 90.3,
+    "price_without_charm": 85.0,
     "charm_standalone": 0.0,
     "page": 4,
-    "position": 8,
-    "last_updated": "2026-03-23 21:30"
+    "position": 10,
+    "last_updated": "2026-03-23 21:37"
   },
   "AK-47 | Nightwish (Field-Tested)|||Pochette à sticker: s1mple | Stockholm 2021": {
     "weapon": "AK-47 | Nightwish (Field-Tested)",
     "charm_name": "Pochette à sticker: s1mple | Stockholm 2021",
     "price_with_charm": 98.99,
-    "price_without_charm": 90.3,
+    "price_without_charm": 85.0,
     "charm_standalone": 0.0,
     "page": 5,
-    "position": 2,
-    "last_updated": "2026-03-23 21:30"
+    "position": 4,
+    "last_updated": "2026-03-23 21:37"
   },
-  "AK-47 | Nightwish (Field-Tested)|||Porte-bonheur: Mini Crass": {
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Mini Crass": {
     "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Porte-bonheur: Mini Crass",
+    "charm_name": "Charm: Mini Crass",
     "price_with_charm": 103.5,
-    "price_without_charm": 90.3,
-    "charm_standalone": 0.0,
-    "page": 6,
-    "position": 9,
-    "last_updated": "2026-03-23 21:30"
-  },
-  "AK-47 | Nightwish (Field-Tested)|||Porte-bonheur: Mini SAS": {
-    "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Porte-bonheur: Mini SAS",
-    "price_with_charm": 108.0,
-    "price_without_charm": 90.3,
+    "price_without_charm": 85.0,
     "charm_standalone": 0.0,
     "page": 7,
-    "position": 7,
-    "last_updated": "2026-03-23 21:30"
+    "position": 1,
+    "last_updated": "2026-03-23 21:37"
   },
-  "AK-47 | Nightwish (Field-Tested)|||Porte-bonheur: Sauce piquante": {
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Mini SAS": {
     "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Porte-bonheur: Sauce piquante",
+    "charm_name": "Charm: Mini SAS",
+    "price_with_charm": 108.0,
+    "price_without_charm": 85.0,
+    "charm_standalone": 0.0,
+    "page": 7,
+    "position": 9,
+    "last_updated": "2026-03-23 21:37"
+  },
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Sauce piquante": {
+    "weapon": "AK-47 | Nightwish (Field-Tested)",
+    "charm_name": "Charm: Sauce piquante",
     "price_with_charm": 112.7,
-    "price_without_charm": 90.3,
+    "price_without_charm": 85.0,
     "charm_standalone": 0.0,
     "page": 8,
-    "position": 7,
-    "last_updated": "2026-03-23 21:30"
+    "position": 9,
+    "last_updated": "2026-03-23 21:37"
   },
-  "AK-47 | Nightwish (Field-Tested)|||Porte-bonheur: Éclaboussures": {
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Éclaboussures": {
     "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Porte-bonheur: Éclaboussures",
+    "charm_name": "Charm: Éclaboussures",
     "price_with_charm": 115.0,
-    "price_without_charm": 90.3,
-    "charm_standalone": 0.0,
-    "page": 9,
-    "position": 5,
-    "last_updated": "2026-03-23 21:30"
-  },
-  "AK-47 | Nightwish (Field-Tested)|||Porte-bonheur: Mini Ava": {
-    "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Porte-bonheur: Mini Ava",
-    "price_with_charm": 115.0,
-    "price_without_charm": 90.3,
+    "price_without_charm": 85.0,
     "charm_standalone": 0.0,
     "page": 10,
-    "position": 3,
-    "last_updated": "2026-03-23 21:30"
+    "position": 8,
+    "last_updated": "2026-03-23 21:37"
   },
-  "AK-47 | Nightwish (Field-Tested)|||Porte-bonheur: Couteau en bois": {
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Mini Ava": {
     "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Porte-bonheur: Couteau en bois",
-    "price_with_charm": 120.0,
-    "price_without_charm": 90.3,
+    "charm_name": "Charm: Mini Ava",
+    "price_with_charm": 115.0,
+    "price_without_charm": 85.0,
     "charm_standalone": 0.0,
     "page": 11,
-    "position": 8,
-    "last_updated": "2026-03-23 21:30"
+    "position": 1,
+    "last_updated": "2026-03-23 21:37"
   },
-  "AK-47 | Nightwish (Field-Tested)|||Porte-bonheur: AK de poche": {
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Couteau en bois": {
     "weapon": "AK-47 | Nightwish (Field-Tested)",
-    "charm_name": "Porte-bonheur: AK de poche",
+    "charm_name": "Charm: Couteau en bois",
+    "price_with_charm": 120.0,
+    "price_without_charm": 85.0,
+    "charm_standalone": 0.0,
+    "page": 12,
+    "position": 1,
+    "last_updated": "2026-03-23 21:37"
+  },
+  "AK-47 | Nightwish (Field-Tested)|||Charm: AK de poche": {
+    "weapon": "AK-47 | Nightwish (Field-Tested)",
+    "charm_name": "Charm: AK de poche",
     "price_with_charm": 805.0,
-    "price_without_charm": 90.3,
+    "price_without_charm": 85.0,
     "charm_standalone": 0.0,
     "page": 15,
-    "position": 8,
-    "last_updated": "2026-03-23 21:30"
+    "position": 9,
+    "last_updated": "2026-03-23 21:37"
   }
 }

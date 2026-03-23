@@ -1,5 +1,4 @@
 import aiohttp
-import asyncio
 from urllib.parse import quote
 
 STEAM_BASE = "https://steamcommunity.com/market"
@@ -24,7 +23,6 @@ class SteamMarketAPI:
         return self._session
 
     async def get_price_overview(self, market_hash_name: str) -> dict:
-        """Prix global de l'item (min, médiane, volume)."""
         session = await self._get_session()
         url = f"{STEAM_BASE}/priceoverview/"
         params = {
@@ -34,20 +32,20 @@ class SteamMarketAPI:
         }
         async with session.get(url, params=params) as resp:
             if resp.status == 429:
-                raise RuntimeError("Rate limit Steam atteint, réessaie dans 1 minute.")
+                raise RuntimeError("Rate limit Steam, réessaie dans 1 minute.")
             if resp.status != 200:
                 raise RuntimeError(f"Steam a répondu {resp.status}")
             return await resp.json(content_type=None)
 
-    async def get_listings(self, market_hash_name: str, start: int = 0, count: int = 100) -> dict:
-        """Récupère les listings actifs avec les descriptions des assets."""
+    async def get_page(self, market_hash_name: str, start: int = 0) -> dict:
+        """Récupère exactement 10 listings à partir de la position start."""
         session = await self._get_session()
         encoded = quote(market_hash_name, safe="")
         url = f"{STEAM_BASE}/listings/{APP_ID}/{encoded}/render/"
         params = {
             "query": "",
             "start": start,
-            "count": count,
+            "count": 10,
             "country": "FR",
             "language": "french",
             "currency": CURRENCY,
@@ -55,40 +53,10 @@ class SteamMarketAPI:
         }
         async with session.get(url, params=params) as resp:
             if resp.status == 429:
-                raise RuntimeError("Rate limit Steam atteint, réessaie dans 1 minute.")
+                raise RuntimeError("Rate limit Steam, réessaie dans 1 minute.")
             if resp.status != 200:
                 raise RuntimeError(f"Steam a répondu {resp.status}")
             return await resp.json(content_type=None)
-
-    async def get_all_listings(self, market_hash_name: str, pages: int = 2) -> dict:
-        """Récupère plusieurs pages de listings (100 par page) avec délai anti rate-limit."""
-        import asyncio
-        merged_assets: dict = {}
-        merged_listing: dict = {}
-
-        for page in range(pages):
-            data = await self.get_listings(market_hash_name, start=page * 100, count=100)
-
-            raw = data.get("assets", {})
-            if isinstance(raw, dict):
-                inner = raw.get("730", {})
-                if isinstance(inner, dict):
-                    section = inner.get("2", {})
-                    if isinstance(section, dict):
-                        merged_assets.update(section)
-
-            linfo = data.get("listinginfo", {})
-            if isinstance(linfo, dict):
-                merged_listing.update(linfo)
-
-            if page < pages - 1:
-                await asyncio.sleep(1.5)
-
-        # Retourner la même structure que get_listings pour que analyzer.py puisse la lire
-        return {
-            "assets": {"730": {"2": merged_assets}},
-            "listinginfo": merged_listing,
-        }
 
     async def close(self):
         if self._session and not self._session.closed:
