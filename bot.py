@@ -18,6 +18,8 @@ client = discord.Client(intents=intents)
 
 # Stocke les liens en attente du nombre de pages : {user_id: market_hash_name}
 pending: dict[int, str] = {}
+# Stocke la dernière arme recherchée par utilisateur : {user_id: market_hash_name}
+last_search: dict[int, str] = {}
 
 
 @client.event
@@ -52,6 +54,22 @@ async def on_message(message: discord.Message):
         else:
             await message.reply("Réponds avec un **nombre** de pages (ex: `5`) ou `annuler`.")
             return
+
+    # ── /lien <page> ────────────────────────────────────
+    if content.lower().startswith("/lien"):
+        parts = content.split()
+        if len(parts) < 2 or not parts[1].isdigit():
+            await message.reply("Usage : `/lien <numéro de page>` — ex: `/lien 5`")
+            return
+        page_num = int(parts[1])
+        if uid not in last_search:
+            await message.reply("❌ Aucune recherche récente. Envoie d'abord un lien Steam Market.")
+            return
+        from urllib.parse import quote
+        item = last_search[uid]
+        url = f"https://steamcommunity.com/market/listings/730/{quote(item, safe='')}#p{page_num}_price_asc"
+        await message.reply(f"🔗 Page **{page_num}** de `{item[:60]}`:\n{url}")
+        return
 
     # ── /cancel ─────────────────────────────────────────
     if content.lower() == "/cancel":
@@ -90,6 +108,11 @@ async def on_message(message: discord.Message):
         embed.add_field(
             name="ℹ️  `/info`",
             value="> Affiche ce menu",
+            inline=False,
+        )
+        embed.add_field(
+            name="🔗  `/lien <page>`",
+            value="> Génère le lien direct vers une page Steam de ta dernière recherche\n> Ex: `/lien 70`",
             inline=False,
         )
         embed.add_field(
@@ -139,6 +162,7 @@ async def on_message(message: discord.Message):
     if matches:
         market_hash_name = unquote(matches[0]).rstrip("/")
         pending[uid] = market_hash_name
+        last_search[uid] = market_hash_name
         await message.reply(
             f"🔗 Lien reçu : **{market_hash_name[:60]}**\n\n"
             f"Combien de pages veux-tu analyser ? *(1 page = 10 listings)*"
