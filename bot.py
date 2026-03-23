@@ -67,20 +67,20 @@ async def on_message(message: discord.Message):
 
     # ── !charms ────────────────────────────────────────
     if content.lower() == "!charms":
-        db = storage.get_all()
-        if not db:
+        entries = storage.get_all()
+        if not entries:
             await message.reply("📭 Aucune arme avec charm mémorisée pour l'instant.")
             return
 
         embed = discord.Embed(
             color=0xFFD700,
-            description=f"## 🗃️  Armes mémorisées ({len(db)})\n━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            description=f"## 🗃️  Charms mémorisés ({len(entries)})\n━━━━━━━━━━━━━━━━━━━━━━━━━━━",
         )
-        for weapon, info in list(db.items())[-20:]:
-            name_short = weapon[:40] + "…" if len(weapon) > 40 else weapon
+        for info in entries[-20:]:
+            name_short = info["weapon"][:35] + "…" if len(info["weapon"]) > 35 else info["weapon"]
             val = (
                 f"> 🔑 `{info['charm_name']}`\n"
-                f"> 💰 Prix avec charm : {info['price_with_charm']:.2f} €\n"
+                f"> 💰 {info['price_with_charm']:.2f} €  •  📍 Page {info.get('page','?')}, pos {info.get('position','?')}\n"
                 f"> 🕐 {info['last_updated']}"
             )
             embed.add_field(name=f"🔫 {name_short}", value=val, inline=False)

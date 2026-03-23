@@ -26,20 +26,38 @@ def save_charm(
     price_with_charm: float,
     price_without_charm: float | None,
     charm_standalone: float | None,
+    page: int = 0,
+    position: int = 0,
 ):
     db = _load()
-    db[weapon] = {
+    # Clé unique = arme + charm pour stocker plusieurs charms par arme
+    key = f"{weapon}|||{charm_name}"
+    db[key] = {
+        "weapon": weapon,
         "charm_name": charm_name,
         "price_with_charm": price_with_charm,
         "price_without_charm": price_without_charm,
         "charm_standalone": charm_standalone,
+        "page": page,
+        "position": position,
         "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
     }
     _save(db)
 
 
-def get_all() -> dict:
-    return _load()
+def search_charm(query: str) -> list[dict]:
+    """Recherche un charm par nom (insensible à la casse)."""
+    db = _load()
+    results = []
+    q = query.lower()
+    for info in db.values():
+        if q in info["charm_name"].lower() or q in info["weapon"].lower():
+            results.append(info)
+    return results
+
+
+def get_all() -> list[dict]:
+    return list(_load().values())
 
 
 def count() -> int:
