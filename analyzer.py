@@ -213,17 +213,17 @@ async def scan(market_hash_name: str) -> discord.Embed:
                 position=pos0,
             )
 
-            # Afficher chaque listing individuel : prix charm (prix arme+charm)
+            # Afficher chaque listing individuel
             lines = ""
-            for price, pg, ps in listings[:6]:  # max 6 par charm
-                charm_val = price - lowest
-                charm_str = f"{charm_val:.2f} €" if charm_val > 0 else "inclus"
-                lines += f"> 💎 **{charm_str}** *(arme+charm : {price:.2f} €)*  —  p.{pg} pos.{ps}\n"
-            if len(listings) > 6:
-                lines += f"> *...et {len(listings)-6} autres*\n"
-
             if standalone:
-                lines += f"> 🏪 Charm seul sur marché : **{standalone:.2f} €**"
+                lines += f"> 💎 Prix du charm (marché) : **{standalone:.2f} €**\n"
+            else:
+                lines += f"> 💎 Prix du charm : *introuvable*\n"
+            lines += "\n"
+            for price, pg, ps in listings[:6]:
+                lines += f"> 🏷️ **{price:.2f} €** *(arme+charm)*  —  page {pg}, pos. {ps}\n"
+            if len(listings) > 6:
+                lines += f"> *...et {len(listings)-6} autre(s) listing(s)*\n"
 
             embed.add_field(name=f"✨ {display}", value=lines, inline=False)
 
