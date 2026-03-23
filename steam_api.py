@@ -49,7 +49,7 @@ class SteamMarketAPI:
             "start": start,
             "count": count,
             "country": "FR",
-            "language": "english",
+            "language": "french",
             "currency": CURRENCY,
             "format": "json",
         }

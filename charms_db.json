@@ -1,9 +1,92 @@
 {
-  "AK-47 | Nightwish (Field-Tested)": {
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Lil' No. 2": {
+    "weapon": "AK-47 | Nightwish (Field-Tested)",
+    "charm_name": "Charm: Lil' No. 2",
+    "price_with_charm": 92.0,
+    "price_without_charm": 92.0,
+    "charm_standalone": null,
+    "page": 1,
+    "position": 7,
+    "last_updated": "2026-03-23 21:22"
+  },
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Lil' Cap Gun": {
+    "weapon": "AK-47 | Nightwish (Field-Tested)",
+    "charm_name": "Charm: Lil' Cap Gun",
+    "price_with_charm": 97.75,
+    "price_without_charm": 92.0,
+    "charm_standalone": null,
+    "page": 4,
+    "position": 5,
+    "last_updated": "2026-03-23 21:22"
+  },
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Stitch-Loaded": {
+    "weapon": "AK-47 | Nightwish (Field-Tested)",
+    "charm_name": "Charm: Stitch-Loaded",
+    "price_with_charm": 98.0,
+    "price_without_charm": 92.0,
+    "charm_standalone": null,
+    "page": 4,
+    "position": 8,
+    "last_updated": "2026-03-23 21:22"
+  },
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Lil' Crass": {
+    "weapon": "AK-47 | Nightwish (Field-Tested)",
     "charm_name": "Charm: Lil' Crass",
     "price_with_charm": 103.5,
     "price_without_charm": 92.0,
     "charm_standalone": null,
-    "last_updated": "2026-03-23 21:16"
+    "page": 6,
+    "position": 9,
+    "last_updated": "2026-03-23 21:22"
+  },
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Lil' SAS": {
+    "weapon": "AK-47 | Nightwish (Field-Tested)",
+    "charm_name": "Charm: Lil' SAS",
+    "price_with_charm": 108.0,
+    "price_without_charm": 92.0,
+    "charm_standalone": null,
+    "page": 7,
+    "position": 9,
+    "last_updated": "2026-03-23 21:22"
+  },
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Hot Sauce": {
+    "weapon": "AK-47 | Nightwish (Field-Tested)",
+    "charm_name": "Charm: Hot Sauce",
+    "price_with_charm": 112.7,
+    "price_without_charm": 92.0,
+    "charm_standalone": null,
+    "page": 8,
+    "position": 9,
+    "last_updated": "2026-03-23 21:22"
+  },
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Lil' Ava": {
+    "weapon": "AK-47 | Nightwish (Field-Tested)",
+    "charm_name": "Charm: Lil' Ava",
+    "price_with_charm": 115.0,
+    "price_without_charm": 92.0,
+    "charm_standalone": 0.18,
+    "page": 9,
+    "position": 8,
+    "last_updated": "2026-03-23 21:25"
+  },
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Whittle Knife": {
+    "weapon": "AK-47 | Nightwish (Field-Tested)",
+    "charm_name": "Charm: Whittle Knife",
+    "price_with_charm": 120.0,
+    "price_without_charm": 92.0,
+    "charm_standalone": null,
+    "page": 12,
+    "position": 1,
+    "last_updated": "2026-03-23 21:22"
+  },
+  "AK-47 | Nightwish (Field-Tested)|||Charm: Baby's AK": {
+    "weapon": "AK-47 | Nightwish (Field-Tested)",
+    "charm_name": "Charm: Baby's AK",
+    "price_with_charm": 805.0,
+    "price_without_charm": 92.0,
+    "charm_standalone": null,
+    "page": 15,
+    "position": 6,
+    "last_updated": "2026-03-23 21:22"
   }
 }

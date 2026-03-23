@@ -8,12 +8,11 @@ import storage
 api = SteamMarketAPI()
 
 STEAM_FEE = 0.15
-COLOR_GOLD   = 0xFFD700
-COLOR_GREEN  = 0x2ECC71
-COLOR_RED    = 0xE74C3C
-COLOR_BLUE   = 0x5865F2
+COLOR_GOLD  = 0xFFD700
+COLOR_GREEN = 0x2ECC71
+COLOR_RED   = 0xE74C3C
+COLOR_BLUE  = 0x5865F2
 
-# Prix max acceptable pour un listing (filtre les listings fantaisistes)
 MAX_LISTING_PRICE = 50_000.0
 
 
@@ -37,8 +36,7 @@ def fmt(price: float) -> str:
 
 def discount_bar(pct: float, length: int = 8) -> str:
     filled = min(round(abs(pct) / 100 * length), length)
-    bar = "█" * filled + "░" * (length - filled)
-    return f"`{bar}` {abs(pct):.1f}%"
+    return f"`{'█' * filled}{'░' * (length - filled)}` {abs(pct):.1f}%"
 
 
 def verdict(disc: float | None) -> tuple[str, int]:
@@ -66,10 +64,12 @@ def extract_charm(descriptions: list) -> tuple[str, str] | None:
     for desc in descriptions:
         if desc.get("name") == "keychain_info":
             value = desc.get("value", "")
+            # Chercher dans l'attribut title (le plus fiable)
             m = re.search(r'title="((?:Souvenir )?Charm:\s*[^"]+)"', value)
             if m:
                 display = m.group(1).strip()
                 return display, display.replace(": ", " | ", 1)
+            # Fallback: texte visible
             soup = BeautifulSoup(value, "html.parser")
             text = soup.get_text(separator=" ").strip()
             m = re.search(r"((?:Souvenir )?Charm:\s*.+)", text, re.IGNORECASE)
@@ -87,8 +87,13 @@ def extract_icon(assets: dict) -> str | None:
     return None
 
 
-async def _fetch_listings(market_hash_name: str) -> tuple[dict, dict, float, float, str]:
-    """Retourne (assets, charms_found, lowest_price, median_price, volume)."""
+async def _fetch_charms(market_hash_name: str):
+    """
+    Retourne:
+      - assets (dict)
+      - charms_found: {display: {"market": str, "listings": [(price, page, pos)]}}
+      - lowest, median, volume
+    """
     price_data = await api.get_price_overview(market_hash_name)
     if not price_data.get("success"):
         raise RuntimeError("Item introuvable sur le Steam Market.")
@@ -103,54 +108,47 @@ async def _fetch_listings(market_hash_name: str) -> tuple[dict, dict, float, flo
     assets = raw.get("730", {}) if isinstance(raw, dict) else {}
     assets = assets.get("2", {}) if isinstance(assets, dict) else {}
 
-    linfo_raw = listings_data.get("listinginfo", {})
-    listinginfo = linfo_raw if isinstance(linfo_raw, dict) else {}
+    listinginfo = listings_data.get("listinginfo", {})
+    if not isinstance(listinginfo, dict):
+        listinginfo = {}
 
-    # Construire la liste ordonnée des listings (triés par prix croissant)
+    # Construire la liste triée par prix croissant
     listing_list = []
-    for lid, linfo in listinginfo.items():
+    for linfo in listinginfo.values():
         if not isinstance(linfo, dict):
             continue
         aid = linfo.get("asset", {}).get("id")
-        if not aid:
-            continue
+        if not aid or aid not in assets:
+            continue  # Ignorer si l'asset n'existe pas dans la réponse
         total = (linfo.get("price", 0) + linfo.get("fee", 0)) / 100
-        # Filtrer les listings fantaisistes (> 50 000 €)
-        if total > MAX_LISTING_PRICE:
+        if total <= 0 or total > MAX_LISTING_PRICE:
             continue
         listing_list.append((aid, total))
 
-    # Trier par prix croissant pour avoir la position réelle
     listing_list.sort(key=lambda x: x[1])
 
     charms_found: dict[str, dict] = {}
     for position, (aid, price) in enumerate(listing_list):
-        adata = assets.get(aid)
-        if not adata:
-            continue
+        adata = assets[aid]
         result = extract_charm(adata.get("descriptions", []))
-        if result:
-            display, market = result
-            page = (position // 10) + 1   # 10 items par page Steam
-            pos_in_page = (position % 10) + 1
-            if display not in charms_found:
-                charms_found[display] = {
-                    "market": market,
-                    "prices": [],
-                    "first_page": page,
-                    "first_pos": pos_in_page,
-                }
-            charms_found[display]["prices"].append((price, page, pos_in_page))
+        if not result:
+            continue
+        display, market = result
+        page = (position // 10) + 1
+        pos_in_page = (position % 10) + 1
+        if display not in charms_found:
+            charms_found[display] = {"market": market, "listings": []}
+        charms_found[display]["listings"].append((price, page, pos_in_page))
 
     return assets, charms_found, lowest, median, volume
 
 
-# ─────────────────────────────────────────────
-# MODE 1 : liste rapide des charms trouvés
-# ─────────────────────────────────────────────
+# ─────────────────────────────────────────────────────
+# MODE 1 : scan — liste des charms avec prix exacts
+# ─────────────────────────────────────────────────────
 async def scan(market_hash_name: str) -> discord.Embed:
     try:
-        assets, charms_found, lowest, median, volume = await _fetch_listings(market_hash_name)
+        assets, charms_found, lowest, median, volume = await _fetch_charms(market_hash_name)
 
         name_short = market_hash_name[:50] + "…" if len(market_hash_name) > 50 else market_hash_name
         icon_url = extract_icon(assets)
@@ -182,43 +180,55 @@ async def scan(market_hash_name: str) -> discord.Embed:
             return embed
 
         embed.add_field(name="\u200b", value="━━━━━━━━━━━━━━━━━━━━━━━━━━━", inline=False)
-        total = sum(len(i["prices"]) for i in charms_found.values())
+        total = sum(len(i["listings"]) for i in charms_found.values())
         embed.add_field(
             name=f"〔 🔑 {len(charms_found)} CHARM(S) TROUVÉ(S) — {total} listings 〕",
-            value=f"> 🔫  Prix de base — {fmt(lowest)}\n> *Tape `!analyse <nom>` pour l'analyse complète*",
+            value=f"> 🔫  Prix arme seule — {fmt(lowest)}\n> *Tape `!analyse <nom>` pour l'analyse complète*",
             inline=False,
         )
 
         for display, info in charms_found.items():
-            prices = [p for p, _, _ in info["prices"]]
-            min_c = min(prices)
-            page = info["first_page"]
-            pos  = info["first_pos"]
-            count = len(prices)
+            listings = info["listings"]  # [(price, page, pos), ...]
+            page0, pos0 = listings[0][1], listings[0][2]
+
+            # Récupérer le prix standalone du charm maintenant
+            standalone = None
+            try:
+                c = await api.get_price_overview(info["market"])
+                if c.get("success"):
+                    standalone = parse_price_str(c.get("lowest_price", ""))
+            except Exception:
+                pass
+            await asyncio.sleep(0.3)
 
             # Sauvegarder
+            min_price = min(p for p, _, _ in listings)
             storage.save_charm(
                 weapon=market_hash_name,
                 charm_name=display,
-                price_with_charm=min_c,
+                price_with_charm=min_price,
                 price_without_charm=lowest,
-                charm_standalone=None,
-                page=page,
-                position=pos,
+                charm_standalone=standalone,
+                page=page0,
+                position=pos0,
             )
 
-            embed.add_field(
-                name=f"✨ {display}",
-                value=(
-                    f"> 🏷️  Prix min   — {fmt(min_c)}\n"
-                    f"> 📦  {count} listing{'s' if count > 1 else ''}\n"
-                    f"> 📍  Page {page}, position {pos}"
-                ),
-                inline=True,
-            )
+            # Afficher chaque listing individuel : prix charm (prix arme+charm)
+            lines = ""
+            for price, pg, ps in listings[:6]:  # max 6 par charm
+                charm_val = price - lowest
+                charm_str = f"{charm_val:.2f} €" if charm_val > 0 else "inclus"
+                lines += f"> 💎 **{charm_str}** *(arme+charm : {price:.2f} €)*  —  p.{pg} pos.{ps}\n"
+            if len(listings) > 6:
+                lines += f"> *...et {len(listings)-6} autres*\n"
+
+            if standalone:
+                lines += f"> 🏪 Charm seul sur marché : **{standalone:.2f} €**"
+
+            embed.add_field(name=f"✨ {display}", value=lines, inline=False)
 
         embed.set_footer(
-            text="CS2 Charm Analyzer  •  Steam Market  •  Frais : 15%",
+            text="CS2 Charm Analyzer  •  Steam Market  •  Frais Steam : 15%",
             icon_url="https://store.steampowered.com/favicon.ico",
         )
         return embed
@@ -229,16 +239,15 @@ async def scan(market_hash_name: str) -> discord.Embed:
         return _error_embed(f"Erreur inattendue : {e}")
 
 
-# ─────────────────────────────────────────────
-# MODE 2 : analyse complète d'un charm précis
-# ─────────────────────────────────────────────
+# ─────────────────────────────────────────────────────
+# MODE 2 : analyse complète d'un charm
+# ─────────────────────────────────────────────────────
 async def analyse_charm(query: str) -> discord.Embed:
     matches = storage.search_charm(query)
-
     if not matches:
         return _error_embed(
-            f"Charm `{query}` introuvable en base.\n"
-            "> Envoie d'abord un lien Steam Market pour scanner, puis utilise `!charms` pour voir les noms exacts."
+            f"Charm `{query}` introuvable.\n"
+            "> Envoie d'abord un lien Steam Market, puis utilise `!charms` pour voir les noms."
         )
 
     embed = discord.Embed(
@@ -247,61 +256,49 @@ async def analyse_charm(query: str) -> discord.Embed:
     )
 
     for info in matches[:5]:
-        charm_name = info["charm_name"]
+        charm_name  = info["charm_name"]
         market_hash = charm_name.replace(": ", " | ", 1)
-        price_with = info["price_with_charm"]
-        base = info.get("price_without_charm") or 0.0
-        page = info.get("page", "?")
-        pos  = info.get("position", "?")
+        price_with  = info["price_with_charm"]
+        base        = info.get("price_without_charm") or 0.0
+        page        = info.get("page", "?")
+        pos         = info.get("position", "?")
 
-        # Récupérer prix standalone en temps réel
-        standalone = None
+        standalone = info.get("charm_standalone")
         try:
             c = await api.get_price_overview(market_hash)
             if c.get("success"):
                 standalone = parse_price_str(c.get("lowest_price", ""))
-                # Mettre à jour la base avec le prix standalone
-                storage.save_charm(
-                    weapon=info["weapon"],
-                    charm_name=charm_name,
-                    price_with_charm=price_with,
-                    price_without_charm=base,
-                    charm_standalone=standalone,
-                    page=page if isinstance(page, int) else 0,
-                    position=pos if isinstance(pos, int) else 0,
-                )
         except Exception:
             pass
 
-        implied = price_with - base if base else None
+        implied  = price_with - base if base else None
         disc_pct = (((standalone - implied) / standalone) * 100
                     if standalone and implied and standalone > 0 else None)
-        label, color = verdict(disc_pct)
+        label, _ = verdict(disc_pct)
         r = resale(price_with)
 
-        val = f"> 🔫  Arme de base    —  {fmt(base)}\n" if base else ""
-        val += f"> 🏷️  Arme + Charm   —  {fmt(price_with)}\n"
-        if implied:
-            val += f"> 💡  Valeur charm   —  {fmt(implied)}\n"
+        val  = f"> 🔫  Arme seule      —  **{base:.2f} €**\n" if base else ""
+        val += f"> 🏷️  Arme + Charm   —  **{price_with:.2f} €**\n"
+        if implied and implied > 0:
+            val += f"> 💡  Valeur charm   —  **{implied:.2f} €** *(différence)*\n"
         if standalone:
-            val += f"> 💎  Charm seul     —  {fmt(standalone)}\n"
+            val += f"> 💎  Charm seul     —  **{standalone:.2f} €** *(marché)*\n"
         if disc_pct is not None:
             direction = "sous le marché ↓" if disc_pct > 0 else "au-dessus ↑"
             val += f"> 📊  {direction}  {discount_bar(disc_pct)}\n"
         val += (
-            f"> ⚖️  Seuil rentab. —  {fmt(r['be'])}\n"
-            f"> 🟢  Revente +10%  —  {fmt(r['p10'])}\n"
-            f"> 🚀  Revente +20%  —  {fmt(r['p20'])}\n"
+            f"> ⚖️  Seuil rentab.  —  **{r['be']:.2f} €**\n"
+            f"> 🟢  Revente +10%  —  **{r['p10']:.2f} €**\n"
+            f"> 🚀  Revente +20%  —  **{r['p20']:.2f} €**\n"
             f"> 📍  Trouvé page **{page}**, position **{pos}**\n"
             f"> 🕐  {info.get('last_updated', 'N/A')}\n"
             f"> **{label}**"
         )
-
         name_short = info["weapon"][:45] + "…" if len(info["weapon"]) > 45 else info["weapon"]
         embed.add_field(name=f"🔫 {name_short}", value=val, inline=False)
 
     embed.set_footer(
-        text="CS2 Charm Analyzer  •  Steam Market  •  Frais : 15%",
+        text="CS2 Charm Analyzer  •  Steam Market  •  Frais Steam : 15%",
         icon_url="https://store.steampowered.com/favicon.ico",
     )
     return embed
