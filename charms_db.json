@@ -12,21 +12,91 @@
   "AK-47 | Nightwish (Field-Tested)|||Pistolaine": {
     "weapon": "AK-47 | Nightwish (Field-Tested)",
     "charm_name": "Pistolaine",
-    "price_with_charm": 92.83,
+    "price_with_charm": 98.0,
     "price_without_charm": null,
     "charm_standalone": null,
-    "page": 1,
-    "position": 5,
-    "last_updated": "2026-03-23 21:48"
+    "page": 8,
+    "position": 4,
+    "last_updated": "2026-03-23 21:51"
   },
   "AK-47 | Nightwish (Field-Tested)|||AK de poche": {
     "weapon": "AK-47 | Nightwish (Field-Tested)",
     "charm_name": "AK de poche",
-    "price_with_charm": 92.37,
+    "price_with_charm": 98.62,
     "price_without_charm": null,
     "charm_standalone": null,
-    "page": 1,
-    "position": 9,
-    "last_updated": "2026-03-23 21:48"
+    "page": 10,
+    "position": 1,
+    "last_updated": "2026-03-23 21:51"
+  },
+  "AK-47 | Nightwish (Field-Tested)|||Mini SAS": {
+    "weapon": "AK-47 | Nightwish (Field-Tested)",
+    "charm_name": "Mini SAS",
+    "price_with_charm": 93.49,
+    "price_without_charm": null,
+    "charm_standalone": null,
+    "page": 2,
+    "position": 7,
+    "last_updated": "2026-03-23 21:51"
+  },
+  "AK-47 | Nightwish (Field-Tested)|||Mini Ava": {
+    "weapon": "AK-47 | Nightwish (Field-Tested)",
+    "charm_name": "Mini Ava",
+    "price_with_charm": 100.12,
+    "price_without_charm": null,
+    "charm_standalone": null,
+    "page": 5,
+    "position": 6,
+    "last_updated": "2026-03-23 21:51"
+  },
+  "AK-47 | Nightwish (Field-Tested)|||Couteau en bois": {
+    "weapon": "AK-47 | Nightwish (Field-Tested)",
+    "charm_name": "Couteau en bois",
+    "price_with_charm": 100.12,
+    "price_without_charm": null,
+    "charm_standalone": null,
+    "page": 6,
+    "position": 6,
+    "last_updated": "2026-03-23 21:51"
+  },
+  "AK-47 | Nightwish (Field-Tested)|||Sauce piquante": {
+    "weapon": "AK-47 | Nightwish (Field-Tested)",
+    "charm_name": "Sauce piquante",
+    "price_with_charm": 97.55,
+    "price_without_charm": null,
+    "charm_standalone": null,
+    "page": 7,
+    "position": 5,
+    "last_updated": "2026-03-23 21:51"
+  },
+  "AK-47 | Nightwish (Field-Tested)|||Moments forts d'Austin 2025 | bLitz, le quasi-héros": {
+    "weapon": "AK-47 | Nightwish (Field-Tested)",
+    "charm_name": "Moments forts d'Austin 2025 | bLitz, le quasi-héros",
+    "price_with_charm": 97.25,
+    "price_without_charm": null,
+    "charm_standalone": null,
+    "page": 7,
+    "position": 6,
+    "last_updated": "2026-03-23 21:51"
+  },
+  "AK-47 | Nightwish (Field-Tested)|||Pochette à sticker: s1mple | Stockholm 2021": {
+    "weapon": "AK-47 | Nightwish (Field-Tested)",
+    "charm_name": "Pochette à sticker: s1mple | Stockholm 2021",
+    "price_with_charm": 98.99,
+    "price_without_charm": null,
+    "charm_standalone": null,
+    "page": 8,
+    "position": 10,
+    "last_updated": "2026-03-23 21:51"
+  },
+  "P250 | See Ya Later (Field-Tested)|||Pincée de sel": {
+    "weapon": "P250 | See Ya Later (Field-Tested)",
+    "charm_name": "Pincée de sel",
+    "price_with_charm": 135.84,
+    "price_without_charm": null,
+    "charm_standalone": null,
+    "page": 4,
+    "position": 10,
+    "last_updated": "2026-03-23 21:54"
   }
 }

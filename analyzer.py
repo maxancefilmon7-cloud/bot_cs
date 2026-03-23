@@ -117,14 +117,14 @@ def _parse_page(data: dict, page_num: int) -> tuple[list, int]:
     return charms, total_count
 
 
-async def scan(market_hash_name: str) -> discord.Embed:
+async def scan(market_hash_name: str, pages: int = 10) -> discord.Embed:
     """Scanne 10 pages (100 listings) et liste tous les charms trouvés."""
     try:
         all_charms = []
         total_count = 0
         pages_scanned = 0
 
-        for page_num in range(1, 11):
+        for page_num in range(1, pages + 1):
             start = (page_num - 1) * 10
             data = await api.get_page(market_hash_name, start=start)
             charms, tc = _parse_page(data, page_num)

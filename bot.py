@@ -16,6 +16,9 @@ intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
 
+# Stocke les liens en attente du nombre de pages : {user_id: market_hash_name}
+pending: dict[int, str] = {}
+
 
 @client.event
 async def on_ready():
@@ -28,8 +31,27 @@ async def on_message(message: discord.Message):
         return
 
     content = message.content.strip()
+    uid = message.author.id
 
-    # ── /info ──────────────────────────────────────────
+    # ── Réponse au nombre de pages demandé ─────────────
+    if uid in pending:
+        if content.isdigit():
+            pages = max(1, min(int(content), 50))  # Entre 1 et 50 pages
+            market_hash_name = pending.pop(uid)
+            await message.reply(f"⏳ Analyse de **{pages} page(s)** en cours... (~{pages * 1.2:.0f} sec)")
+            async with message.channel.typing():
+                embed = await scan(market_hash_name, pages=pages)
+            await message.reply(embed=embed)
+            return
+        elif content.lower() in ("annuler", "cancel", "non"):
+            pending.pop(uid)
+            await message.reply("❌ Analyse annulée.")
+            return
+        else:
+            await message.reply("Réponds avec un **nombre** de pages (ex: `5`) ou `annuler`.")
+            return
+
+    # ── /info ───────────────────────────────────────────
     if content.lower() == "/info":
         embed = discord.Embed(
             color=0x5865F2,
@@ -41,37 +63,34 @@ async def on_message(message: discord.Message):
         )
         embed.add_field(
             name="🔗  Lien Steam Market",
-            value="> Envoie directement un lien Steam Market CS2\n"
-                  "> → Je liste toutes les armes avec charms et leurs prix",
+            value="> Envoie un lien → je te demande combien de pages analyser",
             inline=False,
         )
         embed.add_field(
             name="🔍  `!analyse <nom du charm>`",
-            value="> Analyse complète d'un charm mémorisé :\n"
-                  "> valeur du charm, bonne affaire ou non, estimation revente",
+            value="> Analyse complète d'un charm mémorisé",
             inline=False,
         )
         embed.add_field(
             name="📋  `!charms`",
-            value="> Affiche toutes les armes avec charms mémorisées",
+            value="> Liste tous les charms mémorisés",
             inline=False,
         )
         embed.add_field(
             name="ℹ️  `/info`",
-            value="> Affiche ce menu d'aide",
+            value="> Affiche ce menu",
             inline=False,
         )
         embed.set_footer(text="CS2 Charm Analyzer  •  Steam Market")
         await message.reply(embed=embed)
         return
 
-    # ── !charms ────────────────────────────────────────
+    # ── !charms ─────────────────────────────────────────
     if content.lower() == "!charms":
         entries = storage.get_all()
         if not entries:
-            await message.reply("📭 Aucune arme avec charm mémorisée pour l'instant.")
+            await message.reply("📭 Aucun charm mémorisé pour l'instant.")
             return
-
         embed = discord.Embed(
             color=0xFFD700,
             description=f"## 🗃️  Charms mémorisés ({len(entries)})\n━━━━━━━━━━━━━━━━━━━━━━━━━━━",
@@ -84,12 +103,11 @@ async def on_message(message: discord.Message):
                 f"> 🕐 {info['last_updated']}"
             )
             embed.add_field(name=f"🔫 {name_short}", value=val, inline=False)
-
-        embed.set_footer(text="CS2 Charm Analyzer  •  Tape !analyse <charm> pour l'analyse complète")
+        embed.set_footer(text="Tape !analyse <charm> pour l'analyse complète")
         await message.reply(embed=embed)
         return
 
-    # ── !analyse <charm> ───────────────────────────────
+    # ── !analyse <charm> ────────────────────────────────
     if content.lower().startswith("!analyse "):
         charm_name = content[9:].strip()
         if not charm_name:
@@ -100,14 +118,15 @@ async def on_message(message: discord.Message):
         await message.reply(embed=embed)
         return
 
-    # ── Lien Steam Market ──────────────────────────────
+    # ── Lien Steam Market → demande le nombre de pages ──
     matches = STEAM_URL_RE.findall(content)
     if matches:
-        for raw_hash in matches:
-            market_hash_name = unquote(raw_hash).rstrip("/")
-            async with message.channel.typing():
-                embed = await scan(market_hash_name)
-            await message.reply(embed=embed)
+        market_hash_name = unquote(matches[0]).rstrip("/")
+        pending[uid] = market_hash_name
+        await message.reply(
+            f"🔗 Lien reçu : **{market_hash_name[:60]}**\n\n"
+            f"Combien de pages veux-tu analyser ? *(1 page = 10 listings, max 50)*"
+        )
 
 
 token = os.getenv("DISCORD_TOKEN")
