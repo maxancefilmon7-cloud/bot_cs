@@ -39,14 +39,14 @@ class SteamMarketAPI:
                 raise RuntimeError(f"Steam a répondu {resp.status}")
             return await resp.json(content_type=None)
 
-    async def get_listings(self, market_hash_name: str, count: int = 30) -> dict:
+    async def get_listings(self, market_hash_name: str, start: int = 0, count: int = 100) -> dict:
         """Récupère les listings actifs avec les descriptions des assets."""
         session = await self._get_session()
         encoded = quote(market_hash_name, safe="")
         url = f"{STEAM_BASE}/listings/{APP_ID}/{encoded}/render/"
         params = {
             "query": "",
-            "start": 0,
+            "start": start,
             "count": count,
             "country": "FR",
             "language": "english",
@@ -59,6 +59,33 @@ class SteamMarketAPI:
             if resp.status != 200:
                 raise RuntimeError(f"Steam a répondu {resp.status}")
             return await resp.json(content_type=None)
+
+    async def get_all_listings(self, market_hash_name: str, pages: int = 2) -> dict:
+        """Récupère plusieurs pages de listings (100 par page) avec délai anti rate-limit."""
+        import asyncio
+        merged_assets: dict = {}
+        merged_listing: dict = {}
+
+        for page in range(pages):
+            data = await self.get_listings(market_hash_name, start=page * 100, count=100)
+
+            raw = data.get("assets", {})
+            if isinstance(raw, dict):
+                inner = raw.get("730", {})
+                if isinstance(inner, dict):
+                    section = inner.get("2", {})
+                    if isinstance(section, dict):
+                        merged_assets.update(section)
+
+            linfo = data.get("listinginfo", {})
+            if isinstance(linfo, dict):
+                merged_listing.update(linfo)
+
+            # Respecter le rate limit Steam entre chaque page
+            if page < pages - 1:
+                await asyncio.sleep(1.5)
+
+        return {"assets": merged_assets, "listinginfo": merged_listing}
 
     async def close(self):
         if self._session and not self._session.closed:

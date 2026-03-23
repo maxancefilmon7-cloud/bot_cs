@@ -1,21 +1,24 @@
 import re
 import discord
-from urllib.parse import unquote
 from bs4 import BeautifulSoup
 from steam_api import SteamMarketAPI
+import storage
 
 api = SteamMarketAPI()
 
-# Frais Steam CS2 : 15% (13% Steam + 2% Valve)
 STEAM_FEE = 0.15
+
+# Couleurs thème CS2
+COLOR_GOLD    = 0xFFD700
+COLOR_GREEN   = 0x2ECC71
+COLOR_RED     = 0xE74C3C
+COLOR_ORANGE  = 0xFF6B35
 
 
 def parse_price_str(price_str: str) -> float:
-    """Convertit '12,34 €' ou '$12.34' en float."""
     if not price_str:
         return 0.0
     cleaned = re.sub(r"[^\d,.]", "", price_str)
-    # Gère les formats européens (virgule décimale) et US (point décimal)
     if "," in cleaned and "." in cleaned:
         cleaned = cleaned.replace(",", "")
     elif "," in cleaned:
@@ -26,11 +29,32 @@ def parse_price_str(price_str: str) -> float:
         return 0.0
 
 
+def fmt(price: float) -> str:
+    return f"**{price:.2f} €**"
+
+
+def discount_bar(pct: float, length: int = 10) -> str:
+    """Barre visuelle de progression Unicode."""
+    filled = round(abs(pct) / 100 * length)
+    filled = min(filled, length)
+    bar = "█" * filled + "░" * (length - filled)
+    return f"`{bar}` {abs(pct):.1f}%"
+
+
+def verdict(discount_pct: float | None) -> tuple[str, int]:
+    """Retourne un emoji verdict + couleur selon l'opportunité."""
+    if discount_pct is None:
+        return "⬜ Neutre", COLOR_GOLD
+    if discount_pct >= 30:
+        return "🔥 BONNE AFFAIRE", COLOR_GREEN
+    if discount_pct >= 10:
+        return "✅ Intéressant", 0x27AE60
+    if discount_pct >= 0:
+        return "🟡 Prix marché", COLOR_GOLD
+    return "🔴 Surpayé", COLOR_RED
+
+
 def extract_charm_from_descriptions(descriptions: list) -> str | None:
-    """
-    Parse les descriptions d'un asset CS2 pour trouver un Key Chain (charm).
-    Steam retourne du HTML dans le champ 'value'.
-    """
     for desc in descriptions:
         value = desc.get("value", "")
         if "Key Chain" in value:
@@ -42,190 +66,221 @@ def extract_charm_from_descriptions(descriptions: list) -> str | None:
     return None
 
 
+def extract_icon_url(assets: dict) -> str | None:
+    """Récupère l'URL de l'image de l'item depuis les assets Steam."""
+    for asset_data in assets.values():
+        icon = asset_data.get("icon_url")
+        if icon:
+            return f"https://community.cloudflare.steamstatic.com/economy/image/{icon}/256x256"
+    return None
+
+
 def resale_analysis(buy_price: float) -> dict:
-    """
-    Calcule les seuils de revente après frais Steam.
-    Le vendeur reçoit : prix_vente * (1 - STEAM_FEE)
-    Pour récupérer buy_price : prix_vente = buy_price / (1 - STEAM_FEE)
-    """
-    break_even = buy_price / (1 - STEAM_FEE)
-    profit_10 = buy_price * 1.10 / (1 - STEAM_FEE)
-    profit_20 = buy_price * 1.20 / (1 - STEAM_FEE)
     return {
-        "break_even": break_even,
-        "profit_10": profit_10,
-        "profit_20": profit_20,
+        "break_even": buy_price / (1 - STEAM_FEE),
+        "profit_10":  buy_price * 1.10 / (1 - STEAM_FEE),
+        "profit_20":  buy_price * 1.20 / (1 - STEAM_FEE),
     }
 
 
 async def analyze(market_hash_name: str) -> discord.Embed:
-    """
-    Analyse complète d'un item CS2 avec charm.
-    Retourne un embed Discord avec toutes les infos de prix.
-    """
     try:
-        # 1. Prix global de l'item
+        # 1. Prix global
         price_data = await api.get_price_overview(market_hash_name)
-
         if not price_data.get("success"):
             return _error_embed("Item introuvable sur le Steam Market.")
 
         lowest_price = parse_price_str(price_data.get("lowest_price", ""))
-        median_price = parse_price_str(price_data.get("median_price", ""))
-        volume = price_data.get("volume", "N/A")
+        median_price  = parse_price_str(price_data.get("median_price", ""))
+        volume        = price_data.get("volume", "N/A")
 
-        # 2. Listings individuels pour détecter les charms
-        listings_data = await api.get_listings(market_hash_name, count=30)
+        # 2. Listings individuels (200 listings = 2 pages de 100)
+        listings_data = await api.get_all_listings(market_hash_name, pages=2)
 
-        assets = listings_data.get("assets", {}).get("730", {}).get("2", {})
+        raw_assets = listings_data.get("assets", {})
+        if not isinstance(raw_assets, dict):
+            raw_assets = {}
+        assets = raw_assets.get("730", {})
+        if not isinstance(assets, dict):
+            assets = {}
+        assets = assets.get("2", {})
+        if not isinstance(assets, dict):
+            assets = {}
+
         listinginfo = listings_data.get("listinginfo", {})
+        if not isinstance(listinginfo, dict):
+            listinginfo = {}
 
-        # Associer chaque listing à son asset et son prix
         asset_prices: dict[str, float] = {}
-        for lid, linfo in listinginfo.items():
+        for linfo in listinginfo.values():
+            if not isinstance(linfo, dict):
+                continue
             asset_id = linfo.get("asset", {}).get("id")
             if not asset_id:
                 continue
-            price_cents = linfo.get("price", 0)
-            fee_cents = linfo.get("fee", 0)
-            total_euros = (price_cents + fee_cents) / 100
-            asset_prices[asset_id] = total_euros
+            total = (linfo.get("price", 0) + linfo.get("fee", 0)) / 100
+            asset_prices[asset_id] = total
 
         charm_name = None
-        charm_listing_prices: list[float] = []
-        no_charm_listing_prices: list[float] = []
+        charm_prices: list[float] = []
+        no_charm_prices: list[float] = []
 
         for asset_id, asset_data in assets.items():
             price = asset_prices.get(asset_id)
             if price is None:
                 continue
-            descriptions = asset_data.get("descriptions", [])
-            charm = extract_charm_from_descriptions(descriptions)
+            charm = extract_charm_from_descriptions(asset_data.get("descriptions", []))
             if charm:
-                charm_listing_prices.append(price)
-                if charm_name is None:
-                    charm_name = charm
+                charm_prices.append(price)
+                charm_name = charm_name or charm
             else:
-                no_charm_listing_prices.append(price)
+                no_charm_prices.append(price)
 
-        # 3. Prix du charm seul sur le marché
+        # 3. Prix du charm seul
         charm_standalone: float | None = None
         if charm_name:
             try:
-                charm_data = await api.get_price_overview(charm_name)
-                if charm_data.get("success"):
-                    charm_standalone = parse_price_str(charm_data.get("lowest_price", ""))
+                c = await api.get_price_overview(charm_name)
+                if c.get("success"):
+                    charm_standalone = parse_price_str(c.get("lowest_price", ""))
             except Exception:
                 pass
 
-        # 4. Construction de l'embed
+        # 4. Calculs + sauvegarde
+        min_charm  = min(charm_prices)    if charm_prices    else None
+        avg_base   = (sum(no_charm_prices) / len(no_charm_prices)) if no_charm_prices else None
+        implied    = (min_charm - avg_base) if (min_charm and avg_base) else None
+        disc_pct   = (((charm_standalone - implied) / charm_standalone) * 100
+                      if (charm_standalone and implied and charm_standalone > 0) else None)
+
+        label, color = verdict(disc_pct)
+
+        # Sauvegarder dans la base si charm trouvé
+        if charm_name and min_charm:
+            storage.save_charm(
+                weapon=market_hash_name,
+                charm_name=charm_name,
+                price_with_charm=min_charm,
+                price_without_charm=avg_base,
+                charm_standalone=charm_standalone,
+            )
+
+        # 5. Construction de l'embed
+        item_name_short = market_hash_name[:50] + "…" if len(market_hash_name) > 50 else market_hash_name
+        icon_url = extract_icon_url(assets)
+
         embed = discord.Embed(
-            title="🔍 Analyse CS2 — Charm Market",
-            description=f"**{market_hash_name}**",
-            color=0xF5A623,
+            color=color,
+            description=(
+                f"## 🎯  {item_name_short}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            ),
         )
 
-        # Prix global
+        if icon_url:
+            embed.set_thumbnail(url=icon_url)
+
+        # Bloc prix marché
         embed.add_field(
-            name="💰 Prix Steam Market (global)",
+            name="〔 💰 MARCHÉ STEAM 〕",
             value=(
-                f"**Minimum :** {lowest_price:.2f} €\n"
-                f"**Médiane :** {median_price:.2f} €\n"
-                f"**Volume 24h :** {volume} ventes"
+                f"> 📉  Minimum   —  {fmt(lowest_price)}\n"
+                f"> 📊  Médiane   —  {fmt(median_price)}\n"
+                f"> 🔄  Volume 24h — **{volume} ventes**"
             ),
             inline=False,
         )
 
-        # Charm détecté
         if charm_name:
+            embed.add_field(name="\u200b", value="━━━━━━━━━━━━━━━━━━━━━━━━━━━", inline=False)
+
+            # Charm détecté
             embed.add_field(
-                name="🔑 Charm détecté",
-                value=f"`{charm_name}`",
+                name="〔 🔑 CHARM DÉTECTÉ 〕",
+                value=f"> ✨  `{charm_name}`",
                 inline=False,
             )
 
-            min_with_charm = min(charm_listing_prices) if charm_listing_prices else None
-            avg_no_charm = (
-                sum(no_charm_listing_prices) / len(no_charm_listing_prices)
-                if no_charm_listing_prices
-                else None
-            )
-
-            if min_with_charm:
-                embed.add_field(
-                    name="🏷️ Arme + Charm (moins cher)",
-                    value=f"**{min_with_charm:.2f} €**",
-                    inline=True,
-                )
-
-            if avg_no_charm:
-                embed.add_field(
-                    name="🔫 Arme sans Charm (moy.)",
-                    value=f"**{avg_no_charm:.2f} €**",
-                    inline=True,
-                )
-
+            # Tableau des prix
+            prix_lines = ""
+            if min_charm:
+                prix_lines += f"> 🏷️  Arme **+** Charm     —  {fmt(min_charm)}\n"
+            if avg_base:
+                prix_lines += f"> 🔫  Arme **sans** charm  —  {fmt(avg_base)}\n"
             if charm_standalone:
-                embed.add_field(
-                    name="💎 Charm seul (marché)",
-                    value=f"**{charm_standalone:.2f} €**",
-                    inline=True,
-                )
+                prix_lines += f"> 💎  Charm seul           —  {fmt(charm_standalone)}\n"
 
-            # Valeur implicite du charm
-            if min_with_charm and avg_no_charm:
-                implied = min_with_charm - avg_no_charm
-                implied_text = f"Valeur implicite du charm : **{implied:.2f} €**\n"
-                if charm_standalone and charm_standalone > 0:
-                    discount_pct = ((charm_standalone - implied) / charm_standalone) * 100
-                    if discount_pct > 0:
-                        implied_text += f"📊 Le charm est à **{discount_pct:.1f}% sous** son prix marché\n"
-                    else:
-                        implied_text += f"📊 Le charm est à **{abs(discount_pct):.1f}% au-dessus** de son prix marché\n"
+            if prix_lines:
                 embed.add_field(
-                    name="📊 Valeur du Charm",
-                    value=implied_text,
+                    name="〔 🧾 DÉCOMPOSITION DES PRIX 〕",
+                    value=prix_lines,
                     inline=False,
                 )
 
-            # Estimation de revente
-            if min_with_charm:
-                resale = resale_analysis(min_with_charm)
+            # Valeur du charm
+            if implied is not None:
+                charm_section = f"> 💡  Valeur implicite  —  {fmt(implied)}\n"
+                if disc_pct is not None:
+                    direction = "sous ↓" if disc_pct > 0 else "au-dessus ↑"
+                    charm_section += (
+                        f"> 📊  Écart marché  —  {direction}\n"
+                        f"> {discount_bar(disc_pct)}\n"
+                    )
                 embed.add_field(
-                    name="📈 Estimation de revente",
+                    name="〔 📊 ANALYSE DU CHARM 〕",
+                    value=charm_section,
+                    inline=False,
+                )
+
+            # Revente
+            if min_charm:
+                r = resale_analysis(min_charm)
+                embed.add_field(
+                    name="〔 📈 ESTIMATION REVENTE 〕",
                     value=(
-                        f"**Seuil rentabilité :** {resale['break_even']:.2f} €\n"
-                        f"**Revente +10% :** {resale['profit_10']:.2f} €\n"
-                        f"**Revente +20% :** {resale['profit_20']:.2f} €\n"
-                        f"*Frais Steam déduits (15%)*"
+                        f"> ⚖️  Seuil rentabilité  —  {fmt(r['break_even'])}\n"
+                        f"> 🟢  Revente **+10%**    —  {fmt(r['profit_10'])}\n"
+                        f"> 🚀  Revente **+20%**    —  {fmt(r['profit_20'])}\n"
+                        f"> *après frais Steam 15%*"
                     ),
                     inline=False,
                 )
-        else:
+
+            embed.add_field(name="\u200b", value="━━━━━━━━━━━━━━━━━━━━━━━━━━━", inline=False)
             embed.add_field(
-                name="⚠️ Aucun charm détecté",
+                name="〔 🏁 VERDICT 〕",
+                value=f"> {label}",
+                inline=False,
+            )
+
+        else:
+            embed.add_field(name="\u200b", value="━━━━━━━━━━━━━━━━━━━━━━━━━━━", inline=False)
+            embed.add_field(
+                name="〔 ⚠️ AUCUN CHARM DÉTECTÉ 〕",
                 value=(
-                    "Aucun Key Chain trouvé dans les 30 premiers listings.\n"
-                    "L'item n'a peut-être pas de charm, ou il est très rare dans les annonces actuelles."
+                    "> Aucun Key Chain trouvé dans les 30 premiers listings.\n"
+                    "> L'item n'a peut-être pas de charm actif en ce moment."
                 ),
                 inline=False,
             )
-
-            # Quand même afficher l'estimation de revente sur le prix global
             if lowest_price:
-                resale = resale_analysis(lowest_price)
+                r = resale_analysis(lowest_price)
                 embed.add_field(
-                    name="📈 Estimation de revente (sans charm)",
+                    name="〔 📈 ESTIMATION REVENTE 〕",
                     value=(
-                        f"**Seuil rentabilité :** {resale['break_even']:.2f} €\n"
-                        f"**Revente +10% :** {resale['profit_10']:.2f} €\n"
-                        f"**Revente +20% :** {resale['profit_20']:.2f} €\n"
-                        f"*Frais Steam déduits (15%)*"
+                        f"> ⚖️  Seuil rentabilité  —  {fmt(r['break_even'])}\n"
+                        f"> 🟢  Revente **+10%**    —  {fmt(r['profit_10'])}\n"
+                        f"> 🚀  Revente **+20%**    —  {fmt(r['profit_20'])}\n"
+                        f"> *après frais Steam 15%*"
                     ),
                     inline=False,
                 )
 
-        embed.set_footer(text="Données : Steam Market • Frais Steam CS2 : 15%")
+        embed.set_footer(
+            text="CS2 Charm Analyzer  •  Steam Market  •  Frais : 15%",
+            icon_url="https://store.steampowered.com/favicon.ico",
+        )
+
         return embed
 
     except RuntimeError as e:
@@ -235,8 +290,13 @@ async def analyze(market_hash_name: str) -> discord.Embed:
 
 
 def _error_embed(message: str) -> discord.Embed:
-    return discord.Embed(
-        title="❌ Erreur",
-        description=message,
-        color=0xFF0000,
+    embed = discord.Embed(
+        color=COLOR_RED,
+        description=(
+            f"## ❌  Erreur\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"> {message}"
+        ),
     )
+    embed.set_footer(text="CS2 Charm Analyzer  •  Steam Market")
+    return embed
