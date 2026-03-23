@@ -62,24 +62,50 @@ def resale(buy: float) -> dict:
 def extract_charm(descriptions: list) -> tuple[str, str] | None:
     """
     Retourne (display_name, market_hash_name) ou None.
-    Extrait depuis l'URL du lien Steam — indépendant de la langue.
+
+    Structure réelle retournée par Steam en français :
+      name  = "keychain_info"
+      value = HTML avec <img title="Porte-bonheur: Biomech"> ou
+              <img title="Porte-bonheur (Souvenir): ...">
+
+    Il n'y a PAS de lien href vers le market dans ce HTML.
+    Le nom du charm est dans l'attribut title de l'image.
+    Le préfixe français "Porte-bonheur: " correspond à "Charm | " en anglais.
+    Le préfixe "Porte-bonheur (Souvenir): " correspond à "Souvenir Charm | ".
     """
-    from urllib.parse import unquote
     for desc in descriptions:
-        if desc.get("name") == "keychain_info":
-            value = desc.get("value", "")
-            # Extraire depuis l'URL du lien (toujours en anglais)
-            m = re.search(r'href="[^"]+/market/listings/730/([^"]+)"', value)
-            if m:
-                market_hash = unquote(m.group(1)).strip()
-                # Convertir "Charm | Biomech" → "Charm: Biomech" pour l'affichage
-                display = market_hash.replace(" | ", ": ", 1)
-                return display, market_hash
-            # Fallback: title attribute
-            m = re.search(r'title="([^"]+)"', value)
-            if m:
-                display = m.group(1).strip()
-                return display, display.replace(": ", " | ", 1)
+        if desc.get("name") != "keychain_info":
+            continue
+        value = desc.get("value", "")
+
+        # Extraire l'attribut title de la balise <img>
+        m = re.search(r'title="([^"]+)"', value)
+        if not m:
+            continue
+
+        title = m.group(1).strip()
+
+        # Cas souvenir : "Porte-bonheur (Souvenir): <nom>"
+        m_souvenir = re.match(r"Porte-bonheur\s*\(Souvenir\)\s*:\s*(.+)", title)
+        if m_souvenir:
+            charm_name = m_souvenir.group(1).strip()
+            display = f"Charm (Souvenir): {charm_name}"
+            market_hash = f"Souvenir Charm | {charm_name}"
+            return display, market_hash
+
+        # Cas normal : "Porte-bonheur: <nom>"
+        m_normal = re.match(r"Porte-bonheur\s*:\s*(.+)", title)
+        if m_normal:
+            charm_name = m_normal.group(1).strip()
+            display = f"Charm: {charm_name}"
+            market_hash = f"Charm | {charm_name}"
+            return display, market_hash
+
+        # Fallback générique : utiliser le titre brut tel quel
+        display = title
+        market_hash = title.replace(": ", " | ", 1)
+        return display, market_hash
+
     return None
 
 
