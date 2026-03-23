@@ -109,7 +109,7 @@ async def scan(market_hash_name: str) -> discord.Embed:
             aid = linfo.get("asset", {}).get("id")
             if not aid or aid not in assets:
                 continue
-            price = (linfo.get("price", 0) + linfo.get("fee", 0)) / 100
+            price = (linfo.get("converted_price", linfo.get("price", 0)) + linfo.get("converted_fee", linfo.get("fee", 0))) / 100
             if price <= 0 or price > 50000:
                 continue
             listings.append({
