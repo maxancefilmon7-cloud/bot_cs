@@ -38,7 +38,9 @@ async def on_message(message: discord.Message):
         if content.isdigit():
             pages = max(1, int(content))
             market_hash_name = pending.pop(uid)
-            await message.reply(f"⏳ Analyse de **{pages} page(s)** en cours...")
+            import math
+            est = math.ceil(pages / 10) * 2
+            await message.reply(f"⏳ Analyse de **{pages} page(s)** en cours... (~{est}s)")
             async with message.channel.typing():
                 embed = await scan(market_hash_name, pages=pages)
             await message.reply(embed=embed)
