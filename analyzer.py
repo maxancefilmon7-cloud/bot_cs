@@ -118,8 +118,7 @@ async def scan(market_hash_name: str) -> discord.Embed:
                 "asset": assets[aid],
             })
 
-        # Trier par prix croissant = même ordre que Steam Market
-        listings.sort(key=lambda x: x["price"])
+        # Ne pas re-trier — Steam retourne déjà les listings dans l'ordre de la page
 
         # Chercher les charms
         charms = []
